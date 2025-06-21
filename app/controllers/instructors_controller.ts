@@ -6,7 +6,7 @@ import vine from '@vinejs/vine'
 
 export default class InstructorsController {
   async index({ response }: HttpContext) {
-    const data = await Instructor.all()
+    const data = await Instructor.query().preload('instrumentos') // ✅ muchos instrumentos
     return response.ok(data)
   }
 
@@ -18,13 +18,25 @@ export default class InstructorsController {
 
     const instructor = await Instructor.create({
       nombreCompleto: data.nombre_completo,
-      instrumentoPrincipal: data.instrumento_principal,
+      activo: true,
     })
-    return response.created(instructor)
+
+    // ✅ Asignar múltiples instrumentos
+    await instructor.related('instrumentos').attach(data.instrumento_ids)
+    await instructor.load('instrumentos')
+
+    return response.created({
+      message: 'Instructor creado correctamente',
+      instructor,
+    })
   }
 
   async show({ params, response }: HttpContext) {
-    const instructor = await Instructor.findOrFail(params.id)
+    const instructor = await Instructor.query()
+      .where('id', params.id)
+      .preload('instrumentos') // ✅ plural
+      .firstOrFail()
+
     return response.ok(instructor)
   }
 
@@ -36,8 +48,18 @@ export default class InstructorsController {
       data: request.all(),
     })
 
-    instructor.merge(data)
+    instructor.merge({
+      nombreCompleto: data.nombre_completo,
+      activo: data.activo,
+    })
     await instructor.save()
+
+    // ✅ Si se envían instrumentos, sincronizamos
+    if (data.instrumento_ids) {
+      await instructor.related('instrumentos').sync(data.instrumento_ids)
+    }
+
+    await instructor.load('instrumentos')
 
     return response.ok(instructor)
   }
@@ -47,6 +69,12 @@ export default class InstructorsController {
 
     if (!instructor) {
       return response.notFound({ message: 'Instructor no encontrado' })
+    }
+
+    if (instructor.activo) {
+      return response.badRequest({
+        message: 'No se puede eliminar un instructor activo. Inactívelo primero.',
+      })
     }
 
     await instructor.delete()
@@ -62,6 +90,8 @@ export default class InstructorsController {
 
     instructor.activo = !instructor.activo
     await instructor.save()
+
+    await instructor.load('instrumentos')
 
     const estado = instructor.activo ? 'activado' : 'inactivado'
 

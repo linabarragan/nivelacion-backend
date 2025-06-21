@@ -1,22 +1,28 @@
 import Instructor from '#models/instructor'
+import { DateTime } from 'luxon'
 
 export default class InstructorSeeder {
   public async run() {
+    const now = DateTime.local()
+
     await Instructor.createMany([
       {
         nombreCompleto: 'Luis Miguel',
-        instrumentoPrincipal: 'Canto',
         activo: true,
+        createdAt: now,
+        updatedAt: now,
       },
       {
         nombreCompleto: 'Shakira Mebarak',
-        instrumentoPrincipal: 'Guitarra',
         activo: false,
+        createdAt: now,
+        updatedAt: now,
       },
       {
         nombreCompleto: 'Carlos Vives',
-        instrumentoPrincipal: 'Acordeón',
         activo: true,
+        createdAt: now,
+        updatedAt: now,
       },
     ])
   }
